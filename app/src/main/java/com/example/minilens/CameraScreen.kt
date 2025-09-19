@@ -32,9 +32,12 @@ Column(
             val previewView = PreviewView(ctx)
 
             val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+            //runs when the provider is ready.
             cameraProviderFuture.addListener({
+
                 val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
 
+                //send camera frames into previewView
                 val preview = Preview.Builder().build().also {
                     it.setSurfaceProvider(previewView.surfaceProvider)
                 }
