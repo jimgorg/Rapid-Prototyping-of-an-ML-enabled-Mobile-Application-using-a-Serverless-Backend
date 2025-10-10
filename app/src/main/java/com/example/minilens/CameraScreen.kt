@@ -128,25 +128,40 @@ fun CameraScreen(context: Context, navController: NavController){
             modifier = Modifier.fillMaxSize()
         )
 
-        fun startPhotoCapturing(time:Long = 200L){
+        fun startPhotoCapturing(time:Long = 400L){
+            val numOfShots: Int = 5
+
             if(isCapturing) {
                 return
             }
-            isCapturing = true
+            isCapturing =true
             job = scope.launch {
-                while(isCapturing){
+                for(i in 1..numOfShots){
+                    if(!isCapturing)
+                        break
                     imageCapture?.let{ it->
                         val success = TakePicture(context, it, executor)
                         withContext(Dispatchers.Main) {
                             Toast.makeText(
-                                context, if (success) "Photo saved" else "FAILEDTOSAVE",
-                                Toast.LENGTH_LONG
+                                context, if (success) "Photo : $i saved" else "FAILEDTOSAVE photo $i",
+                                Toast.LENGTH_SHORT
                             ).show()
                         }
                     }
                     delay(time)
                 }
+                withContext(Dispatchers.Main){
+                    Toast.makeText(context,
+                        "FINISTED capturing \n\t Total $numOfShots pictures",
+                        Toast.LENGTH_LONG).show()
+                }
+                isCapturing = false
+                job = null
+
             }
+
+
+
         }
 
         fun stopCPhotoCapturing(){
