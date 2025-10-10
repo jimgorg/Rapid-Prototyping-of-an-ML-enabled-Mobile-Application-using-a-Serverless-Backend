@@ -42,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.CenterHorizontally
@@ -59,11 +60,18 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.coroutines.resume
 
 @Composable
 fun CameraScreen(context: Context, navController: NavController){
@@ -71,7 +79,9 @@ fun CameraScreen(context: Context, navController: NavController){
     var imageCapture: ImageCapture? by remember { mutableStateOf(null) }
     val lifecycleOwner = LocalLifecycleOwner.current
     val executor = remember { Executors.newSingleThreadExecutor() }
-
+    val scope = rememberCoroutineScope()
+    var isCapturing by remember { mutableStateOf(false) }
+    var job by remember{mutableStateOf<Job?>(null)}
 
 
     Box (modifier = Modifier.fillMaxSize().background(Color.Black))
@@ -92,7 +102,7 @@ fun CameraScreen(context: Context, navController: NavController){
                         it.setSurfaceProvider(previewView.surfaceProvider)
                     }
 
-                    val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+                    val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
 
                     //ensures photos are oriented correctly
                     imageCapture = ImageCapture.Builder()
@@ -118,10 +128,32 @@ fun CameraScreen(context: Context, navController: NavController){
             modifier = Modifier.fillMaxSize()
         )
 
+        fun startPhotoCapturing(time:Long = 200L){
+            if(isCapturing) {
+                return
+            }
+            isCapturing = true
+            job = scope.launch {
+                while(isCapturing){
+                    imageCapture?.let{ it->
+                        val success = TakePicture(context, it, executor)
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(
+                                context, if (success) "Photo saved" else "FAILEDTOSAVE",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                    delay(time)
+                }
+            }
+        }
 
-
-
-
+        fun stopCPhotoCapturing(){
+            isCapturing = false
+            job?.cancel()
+            job = null
+        }
 
 
         IconButton(
@@ -144,19 +176,28 @@ fun CameraScreen(context: Context, navController: NavController){
 
         IconButton(
             onClick = {
-                imageCapture?.let { capture ->
-                    TakePicture(context, capture, executor) { success, message ->
-                        android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-
-                            if (success) {
-                                Log.d("camera Screen", "Photo saved successfully")
-                            }
-                        }
-                    }
-                } ?: run {
-                    Toast.makeText(context, "Camera is not ready", Toast.LENGTH_LONG).show()
+                if(isCapturing){
+                    stopCPhotoCapturing()
+                    Toast.makeText(context, "Stoped Capturing!",
+                        Toast.LENGTH_LONG).show()
+                }else{
+                    startPhotoCapturing()
+                    Toast.makeText(context, "Started Capturing!",
+                        Toast.LENGTH_LONG).show()
                 }
+//                imageCapture?.let { capture ->
+//                    TakePicture(context, capture, executor) { success, message ->
+//                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+//                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+//
+//                            if (success) {
+//                                Log.d("camera Screen", "Photo saved successfully")
+//                            }
+//                        }
+//                    }
+//                } ?: run {
+//                    Toast.makeText(context, "Camera is not ready", Toast.LENGTH_LONG).show()
+//                }
             },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -173,13 +214,18 @@ fun CameraScreen(context: Context, navController: NavController){
         }
 
     }
+
+
+
+
+
 }
 
-private fun TakePicture(context: Context,
+suspend fun TakePicture(context: Context,
                         imageCapture: ImageCapture,
-                        executor : ExecutorService,
-                        callback:(Boolean, String)->Unit
-){
+                        executor : ExecutorService
+//                        callback:(Boolean, String)->Unit
+): Boolean = suspendCancellableCoroutine{ cont ->
 
     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(System.currentTimeMillis())
     val fileName = "MiniLens_$timestamp.jpg"
@@ -198,8 +244,8 @@ private fun TakePicture(context: Context,
 
     if (!miniLensDir.exists() || !miniLensDir.canWrite()) {
         Log.e("CameraScreen", "Cannot write to gallery directory")
-        callback(false, "Gallery access failed")
-        return
+//        callback(false, "Gallery access failed")
+        return@suspendCancellableCoroutine
     }
 
     val file  = File(miniLensDir, fileName)
@@ -222,17 +268,18 @@ private fun TakePicture(context: Context,
                     arrayOf("image/jpeg"),
                     null
                 )
-                callback(true, "Photo saved!")
+//                callback(true, "Photo saved!")
+                cont.resume(true)
             }
 
             override fun onError(exception: ImageCaptureException) {
                 Log.e("CameraScreen", "FAILED: ${exception.message}")
-                callback(false, "Save failed")
+//                callback(false, "Save failed")
+                cont.resume(false)
             }
         }
     )
 }
-
 
 
 
