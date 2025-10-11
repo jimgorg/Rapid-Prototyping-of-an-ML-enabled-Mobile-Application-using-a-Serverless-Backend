@@ -72,6 +72,8 @@ import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.coroutines.resume
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 @Composable
 fun CameraScreen(context: Context, navController: NavController){
@@ -128,7 +130,7 @@ fun CameraScreen(context: Context, navController: NavController){
             modifier = Modifier.fillMaxSize()
         )
 
-        fun startPhotoCapturing(time:Long = 400L){
+        fun startPhotoCapturing(time: Duration = 2.seconds){
             val numOfShots: Int = 5
 
             if(isCapturing) {
@@ -136,9 +138,12 @@ fun CameraScreen(context: Context, navController: NavController){
             }
             isCapturing =true
             job = scope.launch {
+                Toast.makeText(
+                    context, "OPERATION STARTED", Toast.LENGTH_SHORT).show()
                 for(i in 1..numOfShots){
                     if(!isCapturing)
                         break
+
                     imageCapture?.let{ it->
                         val success = TakePicture(context, it, executor)
                         withContext(Dispatchers.Main) {
@@ -150,6 +155,7 @@ fun CameraScreen(context: Context, navController: NavController){
                     }
                     delay(time)
                 }
+                delay(time)
                 withContext(Dispatchers.Main){
                     Toast.makeText(context,
                         "FINISTED capturing \n\t Total $numOfShots pictures",
@@ -159,8 +165,6 @@ fun CameraScreen(context: Context, navController: NavController){
                 job = null
 
             }
-
-
 
         }
 
