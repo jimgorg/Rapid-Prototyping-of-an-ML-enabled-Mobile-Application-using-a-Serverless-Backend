@@ -3,6 +3,7 @@ package com.example.minilens
 import android.content.Context
 import android.nfc.Tag
 import android.os.Environment
+import android.util.Base64
 import android.util.Log
 import android.util.Log.d
 import android.widget.Toast
@@ -12,6 +13,7 @@ import androidx.camera.core.ImageCapture.*
 import androidx.camera.core.ImageCapture.OutputFileOptions.*
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
+import androidx.camera.core.processing.SurfaceProcessorNode
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
@@ -66,6 +68,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -84,7 +88,7 @@ fun CameraScreen(context: Context, navController: NavController){
     val scope = rememberCoroutineScope()
     var isCapturing by remember { mutableStateOf(false) }
     var job by remember{mutableStateOf<Job?>(null)}
-
+    val picturesList = remember { mutableListOf<Photo>() }
 
     Box (modifier = Modifier.fillMaxSize().background(Color.Black))
     {
@@ -138,14 +142,17 @@ fun CameraScreen(context: Context, navController: NavController){
             }
             isCapturing =true
             job = scope.launch {
-                Toast.makeText(
-                    context, "OPERATION STARTED", Toast.LENGTH_SHORT).show()
+//                Toast.makeText(
+//                    context, "OPERATION STARTED", Toast.LENGTH_SHORT).show()
                 for(i in 1..numOfShots){
                     if(!isCapturing)
                         break
 
                     imageCapture?.let{ it->
-                        val success = TakePicture(context, it, executor)
+                        val success = TakePicture(context, it, executor,i){ file, fileBase64 ->
+                            picturesList.add(Photo(file.name, fileBase64))
+                        }
+
                         withContext(Dispatchers.Main) {
                             Toast.makeText(
                                 context, if (success) "Photo : $i saved" else "FAILEDTOSAVE photo $i",
@@ -161,6 +168,23 @@ fun CameraScreen(context: Context, navController: NavController){
                         "FINISTED capturing \n\t Total $numOfShots pictures",
                         Toast.LENGTH_LONG).show()
                 }
+                for (photo in picturesList) {
+                    Log.d("chekingobjects", "pic: ${photo.name} json: ${photo.photoOnBase64.take(50)}...")
+                }
+
+                val list = JsonifyImages(picturesList)
+                val upload = PicturesForUpload(picturesList)
+
+
+                try{
+
+                    val resp = Retrofit.api.uploadImages(upload)
+                    Log.d("SUCCESS","SUCCESS : ${resp.status}, Message : ${resp.message}")
+                }catch (e: Exception){
+                    Log.d("ERROR","Upload FAILED : ${e.message}")
+                }
+
+                Log.d("WILL_UPLOAD", list.toString(7))
                 isCapturing = false
                 job = null
 
@@ -241,13 +265,14 @@ fun CameraScreen(context: Context, navController: NavController){
 }
 
 suspend fun TakePicture(context: Context,
-                        imageCapture: ImageCapture,
-                        executor : ExecutorService
+                        imageCapture : ImageCapture,
+                        executor : ExecutorService,
+                        num:Int,
+                        onSaved : ((file:File, fileBase64:String)->Unit) ?= null
 //                        callback:(Boolean, String)->Unit
 ): Boolean = suspendCancellableCoroutine{ cont ->
-
     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(System.currentTimeMillis())
-    val fileName = "MiniLens_$timestamp.jpg"
+    val fileName = "Photo_$num.jpg"
 
     Log.d("CameraScreen", "Saving to gallery: $fileName")
 
@@ -287,6 +312,10 @@ suspend fun TakePicture(context: Context,
                     arrayOf("image/jpeg"),
                     null
                 )
+
+                val bytes = file.readBytes()
+                val fileBase64 = Base64.encodeToString(bytes, Base64.DEFAULT)
+                onSaved?.invoke(file, fileBase64)
 //                callback(true, "Photo saved!")
                 cont.resume(true)
             }
@@ -300,7 +329,19 @@ suspend fun TakePicture(context: Context,
     )
 }
 
+fun JsonifyImages(pictureList: List<Photo>): JSONObject{
+    val json = JSONObject()
+    val array = JSONArray()
 
+    pictureList.forEach { it ->
+        val photo = JSONObject()
+        photo.put("name", it.name)
+        photo.put("photoOnBase64", it.photoOnBase64 )
+        array.put(photo)
+    }
+    json.put("images", array)
+    return  json
+}
 
 
 

@@ -4,5 +4,5 @@ import android.graphics.Bitmap
 
 data class Photo(
     val name: String,
-    val bitmap: Bitmap
+    val photoOnBase64: String
 )
