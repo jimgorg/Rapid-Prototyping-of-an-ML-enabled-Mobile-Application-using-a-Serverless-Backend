@@ -1,9 +1,13 @@
 package com.example.minilens
 
+import com.google.gson.annotations.SerializedName
+import okhttp3.ResponseBody
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.create
 import retrofit2.http.Body
+import retrofit2.http.DELETE
+import retrofit2.http.GET
 import retrofit2.http.POST
 
 data class PicturesForUpload(
@@ -14,9 +18,26 @@ data class ApiResponse(
     val status:String
 )
 
+data class Results(
+    @SerializedName("annotatedImages") val images : List<String>
+)
+data class ImageResponse(
+    val statusCode: Int,
+    val body: String
+)
 interface ApiCall{
     @POST("upload_pics")
    suspend fun uploadImages(@Body body : PicturesForUpload): ApiResponse
+
+
+    @GET("object_detection")
+    suspend fun runObjectDetection(): ImageResponse
+
+   @GET("get_results")
+   suspend fun getRecognizedImages(): Results
+
+   @DELETE("delete_results")
+   suspend fun deleteResults(): ImageResponse
 }
 
 object Retrofit{

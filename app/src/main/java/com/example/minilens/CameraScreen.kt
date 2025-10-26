@@ -1,6 +1,9 @@
 package com.example.minilens
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import android.nfc.Tag
 import android.os.Environment
 import android.util.Base64
@@ -75,9 +78,11 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.collections.mutableListOf
 import kotlin.coroutines.resume
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+
 
 @Composable
 fun CameraScreen(context: Context, navController: NavController){
@@ -89,6 +94,9 @@ fun CameraScreen(context: Context, navController: NavController){
     var isCapturing by remember { mutableStateOf(false) }
     var job by remember{mutableStateOf<Job?>(null)}
     val picturesList = remember { mutableListOf<Photo>() }
+    var isProcessing by remember{mutableStateOf(false)}
+
+
 
     Box (modifier = Modifier.fillMaxSize().background(Color.Black))
     {
@@ -134,6 +142,8 @@ fun CameraScreen(context: Context, navController: NavController){
             modifier = Modifier.fillMaxSize()
         )
 
+
+
         fun startPhotoCapturing(time: Duration = 2.seconds){
             val numOfShots: Int = 5
 
@@ -162,7 +172,7 @@ fun CameraScreen(context: Context, navController: NavController){
                     }
                     delay(time)
                 }
-                delay(time)
+//                delay(time)
                 withContext(Dispatchers.Main){
                     Toast.makeText(context,
                         "FINISTED capturing \n\t Total $numOfShots pictures",
@@ -180,6 +190,36 @@ fun CameraScreen(context: Context, navController: NavController){
 
                     val resp = Retrofit.api.uploadImages(upload)
                     Log.d("SUCCESS","SUCCESS : ${resp.status}, Message : ${resp.message}")
+//                    var attempts = 0
+//                    val maxAtt = 5
+//                    val wait = 2000L
+//                    var success = false
+//
+//                    while (attempts < maxAtt && !success) {
+//                        try {
+//                            val procesimages = Retrofit.api.runObjectDetection()
+//                            if (procesimages.images.isNotEmpty()) {
+//                                urls = getResults.images
+//                                success = true
+//                                Log.d(
+//                                    "RESULTSSCREEN",
+//                                    "Response received: ${getResults.images.size} images"
+//                                )
+//                            } else {
+//                                Log.d("RESULTSSCREEN", "Attempt ${attempts + 1}: Failed, retrying...")
+//                                delay(wait)
+//                            }
+//                        } catch (e: Exception) {
+//                            Log.e("RESULTSSCREEN", "Attempt ${attempts + 1} FAILED: ${e.message}")
+//                            delay(wait)
+//                        }
+//                        attempts++
+//                    }
+                    val procesimages = Retrofit.api.runObjectDetection()
+
+
+                    Log.d("SUCCESS","SUCCESS : ${procesimages.statusCode}, Body : ${procesimages.body}")
+
                 }catch (e: Exception){
                     Log.d("ERROR","Upload FAILED : ${e.message}")
                 }
@@ -187,6 +227,10 @@ fun CameraScreen(context: Context, navController: NavController){
                 Log.d("WILL_UPLOAD", list.toString(7))
                 isCapturing = false
                 job = null
+
+//                isProcessing = true
+
+                navController.navigate(Screen.Result.route)
 
             }
 
@@ -292,6 +336,12 @@ suspend fun TakePicture(context: Context,
         return@suspendCancellableCoroutine
     }
 
+    fun rotateBitmap(source: Bitmap, angle: Float): Bitmap {
+        val matrix = Matrix()
+        matrix.postRotate(angle)
+        return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
+    }
+
     val file  = File(miniLensDir, fileName)
     val outputOptions = OutputFileOptions.Builder(file).build()
 
@@ -306,6 +356,16 @@ suspend fun TakePicture(context: Context,
                 Log.d("CameraScreen", "SUCCESS: Photo saved to ${file.absolutePath}")
                 Log.d("CameraScreen", "File size: ${file.length()} bytes")
                 //media scan so photo appears in gallery
+                val originalBitmap = BitmapFactory.decodeFile(file.absolutePath)
+                val rotated = rotateBitmap(originalBitmap, 90f)
+                val stream = file.outputStream()
+                rotated.compress(Bitmap.CompressFormat.JPEG,100,stream)
+                stream.flush()
+                stream.close()
+
+                originalBitmap.recycle()
+                rotated.recycle()
+
                 android.media.MediaScannerConnection.scanFile(
                     context,
                     arrayOf(file.absolutePath),

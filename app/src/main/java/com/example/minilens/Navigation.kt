@@ -19,6 +19,9 @@ fun Navigation(context: Context, navController : NavHostController = rememberNav
         composable(route = Screen.Camera.route ){
             CameraScreen(context = context, navController = navController)
         }
+        composable(route= Screen.Result.route) {
+            ResultsScreen(context= context, navController = navController)
+        }
 
     }
 

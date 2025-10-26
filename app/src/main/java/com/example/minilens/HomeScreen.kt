@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 
 @Composable
 fun HomeScreen(context: Context,
@@ -155,8 +156,12 @@ fun HomeScreen(context: Context,
     }
 }
 
-//@Preview
-//@Composable
-//fun HomeScreenPreview(){
-//HomeScreen()
-//}
+@Preview(showBackground = true)
+@Composable
+fun PreviewHomeScreen() {
+    // Fake context and NavController for preview
+    val context = LocalContext.current
+    val navController = rememberNavController()
+
+    HomeScreen(context = context, navController = navController)
+}
