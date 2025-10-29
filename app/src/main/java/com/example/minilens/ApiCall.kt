@@ -42,6 +42,7 @@ interface ApiCall{
 
 object Retrofit{
     private const val url ="https://x5hjdodjeh.execute-api.us-east-1.amazonaws.com/"
+//    private const val url = "http://54.159.44.178:8080/"
 
     val api : ApiCall by lazy{
         Retrofit.Builder().baseUrl(url)
