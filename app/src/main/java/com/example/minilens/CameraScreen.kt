@@ -145,38 +145,31 @@ fun CameraScreen(context: Context, navController: NavController){
 
 
         fun startPhotoCapturing(time: Duration = 2.seconds){
-            val numOfShots: Int = 5
 
             if(isCapturing) {
                 return
             }
             isCapturing =true
             job = scope.launch {
-//                Toast.makeText(
-//                    context, "OPERATION STARTED", Toast.LENGTH_SHORT).show()
-                for(i in 1..numOfShots){
-                    if(!isCapturing)
-                        break
 
                     imageCapture?.let{ it->
-                        val success = TakePicture(context, it, executor,i){ file, fileBase64 ->
+                        val success = TakePicture(context, it, executor){ file, fileBase64 ->
                             picturesList.add(Photo(file.name, fileBase64))
                         }
 
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(
-                                context, if (success) "Photo : $i saved" else "FAILEDTOSAVE photo $i",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
+//                        withContext(Dispatchers.Main) {
+//                            Toast.makeText(
+//                                context, if (success) "Photo :  saved" else "FAILEDTOSAVE photo ",
+//                                Toast.LENGTH_SHORT
+//                            ).show()
+//                        }
                     }
                     delay(time)
-                }
-//                delay(time)
+
                 withContext(Dispatchers.Main){
                     Toast.makeText(context,
-                        "FINISTED capturing \n\t Total $numOfShots pictures",
-                        Toast.LENGTH_LONG).show()
+                        "FINISTED capturing ",
+                        Toast.LENGTH_SHORT).show()
                 }
                 for (photo in picturesList) {
                     Log.d("chekingobjects", "pic: ${photo.name} json: ${photo.photoOnBase64.take(50)}...")
@@ -190,31 +183,7 @@ fun CameraScreen(context: Context, navController: NavController){
 
                     val resp = Retrofit.api.uploadImages(upload)
                     Log.d("SUCCESS","SUCCESS : ${resp.status}, Message : ${resp.message}")
-//                    var attempts = 0
-//                    val maxAtt = 5
-//                    val wait = 2000L
-//                    var success = false
-//
-//                    while (attempts < maxAtt && !success) {
-//                        try {
-//                            val procesimages = Retrofit.api.runObjectDetection()
-//                            if (procesimages.images.isNotEmpty()) {
-//                                urls = getResults.images
-//                                success = true
-//                                Log.d(
-//                                    "RESULTSSCREEN",
-//                                    "Response received: ${getResults.images.size} images"
-//                                )
-//                            } else {
-//                                Log.d("RESULTSSCREEN", "Attempt ${attempts + 1}: Failed, retrying...")
-//                                delay(wait)
-//                            }
-//                        } catch (e: Exception) {
-//                            Log.e("RESULTSSCREEN", "Attempt ${attempts + 1} FAILED: ${e.message}")
-//                            delay(wait)
-//                        }
-//                        attempts++
-//                    }
+
                     val procesimages = Retrofit.api.runObjectDetection()
 
 
@@ -265,26 +234,14 @@ fun CameraScreen(context: Context, navController: NavController){
             onClick = {
                 if(isCapturing){
                     stopCPhotoCapturing()
-                    Toast.makeText(context, "Stoped Capturing!",
-                        Toast.LENGTH_LONG).show()
+//                    Toast.makeText(context, "Stoped Capturing!",
+//                        Toast.LENGTH_LONG).show()
                 }else{
                     startPhotoCapturing()
                     Toast.makeText(context, "Started Capturing!",
                         Toast.LENGTH_LONG).show()
                 }
-//                imageCapture?.let { capture ->
-//                    TakePicture(context, capture, executor) { success, message ->
-//                        android.os.Handler(android.os.Looper.getMainLooper()).post {
-//                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-//
-//                            if (success) {
-//                                Log.d("camera Screen", "Photo saved successfully")
-//                            }
-//                        }
-//                    }
-//                } ?: run {
-//                    Toast.makeText(context, "Camera is not ready", Toast.LENGTH_LONG).show()
-//                }
+
             },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -311,30 +268,12 @@ fun CameraScreen(context: Context, navController: NavController){
 suspend fun TakePicture(context: Context,
                         imageCapture : ImageCapture,
                         executor : ExecutorService,
-                        num:Int,
+//                        num:Int,
                         onSaved : ((file:File, fileBase64:String)->Unit) ?= null
 //                        callback:(Boolean, String)->Unit
 ): Boolean = suspendCancellableCoroutine{ cont ->
-    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(System.currentTimeMillis())
-    val fileName = "Photo_$num.jpg"
+    val fileName = "Photo_1.jpg"
 
-    Log.d("CameraScreen", "Saving to gallery: $fileName")
-
-    val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-    val miniLensDir = File(picturesDir, "MiniLens")
-
-    Log.d("CameraScreen", "Gallery Pictures path : ${miniLensDir.absolutePath}")
-
-    if (!miniLensDir.exists()) {
-        val created = miniLensDir.mkdirs()
-        Log.d("CameraScreen", "Created MiniLens directory: $created")
-    }
-
-    if (!miniLensDir.exists() || !miniLensDir.canWrite()) {
-        Log.e("CameraScreen", "Cannot write to gallery directory")
-//        callback(false, "Gallery access failed")
-        return@suspendCancellableCoroutine
-    }
 
     fun rotateBitmap(source: Bitmap, angle: Float): Bitmap {
         val matrix = Matrix()
@@ -342,7 +281,8 @@ suspend fun TakePicture(context: Context,
         return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
     }
 
-    val file  = File(miniLensDir, fileName)
+//    val file  = File(miniLensDir, fileName)
+    val file = File(context.cacheDir, fileName)
     val outputOptions = OutputFileOptions.Builder(file).build()
 
 
@@ -353,7 +293,7 @@ suspend fun TakePicture(context: Context,
         executor,
         object : OnImageSavedCallback {
             override fun onImageSaved(output: OutputFileResults) {
-                Log.d("CameraScreen", "SUCCESS: Photo saved to ${file.absolutePath}")
+
                 Log.d("CameraScreen", "File size: ${file.length()} bytes")
                 //media scan so photo appears in gallery
                 val originalBitmap = BitmapFactory.decodeFile(file.absolutePath)
@@ -366,12 +306,7 @@ suspend fun TakePicture(context: Context,
                 originalBitmap.recycle()
                 rotated.recycle()
 
-                android.media.MediaScannerConnection.scanFile(
-                    context,
-                    arrayOf(file.absolutePath),
-                    arrayOf("image/jpeg"),
-                    null
-                )
+
 
                 val bytes = file.readBytes()
                 val fileBase64 = Base64.encodeToString(bytes, Base64.DEFAULT)

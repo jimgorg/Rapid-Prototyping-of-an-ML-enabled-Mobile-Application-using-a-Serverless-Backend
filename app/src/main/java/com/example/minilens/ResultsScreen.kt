@@ -5,7 +5,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.os.Build
+import android.os.Environment
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,6 +33,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
@@ -63,6 +67,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -74,7 +79,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -86,7 +95,7 @@ fun ResultsScreen(context: Context, navController: NavController) {
     var urls by remember { mutableStateOf(listOf<String>()) }
     var bitmaps by remember { mutableStateOf<List<Bitmap?>>(emptyList()) }
     var selectedImage by remember { mutableStateOf<Bitmap?>(null) }
-
+    var saveBitmap by remember { mutableStateOf<Bitmap?>(null) }
     fun rotateBitmap(source: Bitmap, angle: Float): Bitmap {
         val matrix = Matrix()
         matrix.postRotate(angle)
@@ -99,7 +108,7 @@ fun ResultsScreen(context: Context, navController: NavController) {
         try {
             var attempts = 0
             val maxAtt = 5
-            val wait = 2500L
+            val wait = 2000L
             var success = false
 
             while (attempts < maxAtt && !success) {
@@ -112,6 +121,7 @@ fun ResultsScreen(context: Context, navController: NavController) {
                             "RESULTSSCREEN",
                             "Response received: ${getResults.images.size} images"
                         )
+                        break
                     } else {
                         Log.d("RESULTSSCREEN", "Attempt ${attempts + 1}: Failed, retrying...")
                         delay(wait)
@@ -187,13 +197,14 @@ fun ResultsScreen(context: Context, navController: NavController) {
                     horizontalAlignment = Alignment.CenterHorizontally
 
                 ) {
-                    Spacer(modifier = Modifier.height(150.dp))
+                    Spacer(modifier = Modifier.height(250.dp))
 
-                    Image(
-                        painter = painterResource(id = R.drawable.loading_4690214),
-                        contentDescription = "loading logo",
-                        modifier = Modifier.size(400.dp)
-                    )
+//                    Image(
+//                        painter = painterResource(id = R.drawable.loading_4690214),
+//                        contentDescription = "loading logo",
+//                        modifier = Modifier.size(400.dp)
+//                    )
+                    CircularProgressIndicator(modifier = Modifier.size(150.dp),color = colorResource(R.color.red))
 
                     Spacer(modifier = Modifier.height(160.dp))
 
@@ -261,8 +272,8 @@ fun ResultsScreen(context: Context, navController: NavController) {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .wrapContentHeight(),
-                                shape = RoundedCornerShape(12.dp),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                                 colors = CardDefaults.cardColors(
 //                                    containerColor = MaterialTheme.colorScheme.
                                     containerColor = colorResource(R.color.trythisgrey)
@@ -270,16 +281,17 @@ fun ResultsScreen(context: Context, navController: NavController) {
                             ) {
                                 Column(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp)
+                                        .fillMaxSize()
+                                        .padding(12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
+//                                    Row(
+//                                        modifier = Modifier.fillMaxWidth(),
+//                                        horizontalArrangement = Arrangement.SpaceBetween,
+//                                        verticalAlignment = Alignment.CenterVertically
+//                                    ) {
                                         Text(
-                                            text = "Image ${index + 1}",
+                                            text = "Result ",
                                             fontSize = 18.sp,
                                             fontWeight = FontWeight.Bold,
 //                                            color = MaterialTheme.colorScheme.primary
@@ -287,9 +299,9 @@ fun ResultsScreen(context: Context, navController: NavController) {
                                             color = colorResource(R.color.red)
                                         )
 
-                                    }
+//                                    }
 
-                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Spacer(modifier = Modifier.height(10.dp))
 
                                     Card(
                                         modifier = Modifier
@@ -303,42 +315,58 @@ fun ResultsScreen(context: Context, navController: NavController) {
                                             )
                                         )
                                     ) {
-//                                    AsyncImage(
-//                                        model = ImageRequest.Builder(context)
-//                                            .data(url)
-//                                            .crossfade(true)
-//                                            .build(),
-//                                        contentDescription = "Detected objects in image ${index + 1}",
-//                                        modifier = Modifier.fillMaxSize(),
-//                                        contentScale = ContentScale.Fit,
-//                                        onError = {
-//                                            Log.e("RESULTSSCREEN", "Failed to load image $index: ${it.result.throwable}")
-//                                        },
-//                                        onSuccess = {
-//                                            Log.d("RESULTSSCREEN", "Successfully loaded image $index")
-//                                        },
-//
-//                                    )
+
                                         if (bitmap != null) {
+                                            saveBitmap = bitmap
                                             Image(
                                                 bitmap = bitmap.asImageBitmap(),
                                                 contentDescription = "Detected objects in image ${index + 1}",
                                                 modifier = Modifier
                                                     .fillMaxSize()
+//                                                    .height(600.dp)
                                                     .clickable { selectedImage = bitmap },
                                                 contentScale = ContentScale.Fit,
                                             )
                                         }
+
                                     }
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    Button(
+                                        modifier = Modifier.width(300.dp).height(70.dp)
+                                            .align(alignment = Alignment.CenterHorizontally),
+                                        colors= ButtonDefaults.buttonColors(colorResource(id = R.color.red)),
+                                        onClick = {
+                                            SavePicture(context, saveBitmap)
+                                        }
+
+                                    ) {
+                                        Text(
+                                            "Save ",
+                                            textAlign = TextAlign.Center,
+                                            color = colorResource(id = R.color.white),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontSize = 30.sp,
+                                            fontWeight = FontWeight.SemiBold)
+                                    }
+
                                 }
                             }
+
+
+
 
 //                             Bottom spacing
 //                        item {
 //                            Spacer(modifier = Modifier.height(16.dp))
 //                        }
+
+
                         }
+
                     }
+
+
                 }
                 selectedImage?.let{
                     Box(modifier = Modifier
@@ -354,7 +382,7 @@ fun ResultsScreen(context: Context, navController: NavController) {
                             contentDescription = "fullscreen mode",
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(16.dp),
+                                .padding(12.dp),
                             contentScale = ContentScale.Fit
                         )
                     }
@@ -362,20 +390,49 @@ fun ResultsScreen(context: Context, navController: NavController) {
 
             }
 
+
+
         }
     }
 
+fun SavePicture(context: Context, bitmap: Bitmap?, name: String = "Detected_image"){
+    try{
 
+        val fileName = "Photo_.jpg"
 
+        Log.d("CameraScreen", "Saving to gallery: $fileName")
 
+        val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+        val miniLensDir = File(picturesDir, "MiniLens")
 
+        Log.d("ResultsScreen", "Gallery Pictures path : ${miniLensDir.absolutePath}")
 
-//@Preview(showBackground = true)
-//@Composable
-//fun PreviewResultsScreen() {
-//    // Fake context and NavController for preview
-//    val context = LocalContext.current
-//    val navController = rememberNavController()
-//
-//    ResultsScreen(context = context, navController = navController)
-//}
+        if (!miniLensDir.exists()) {
+            val created = miniLensDir.mkdirs()
+            Log.d("ResultsScreen", "Created MiniLens directory: $created")
+        }
+
+        if (!miniLensDir.exists() || !miniLensDir.canWrite()) {
+            Log.e("ResultsScreen", "Cannot write to gallery directory")
+        }
+        val file = File(miniLensDir, fileName)
+        FileOutputStream(file).use { bit->
+            bitmap?.compress(Bitmap.CompressFormat.JPEG,100,bit)
+        }
+
+        android.media.MediaScannerConnection.scanFile(
+            context,
+            arrayOf(file.absolutePath),
+            arrayOf("image/jpeg"),
+            null
+        )
+        Toast.makeText(context, "Photo Saved", Toast.LENGTH_SHORT).show()
+
+        Log.d("ResultsScreen", "Saved to galerry: ${file.absolutePath}")
+
+    }catch (e: Exception){
+        Log.d("ResultsScreen", "FAILED to Save : ${e.message}")
+
+    }
+
+}
