@@ -96,6 +96,8 @@ fun ResultsScreen(context: Context, navController: NavController) {
     var bitmaps by remember { mutableStateOf<List<Bitmap?>>(emptyList()) }
     var selectedImage by remember { mutableStateOf<Bitmap?>(null) }
     var saveBitmap by remember { mutableStateOf<Bitmap?>(null) }
+
+
     fun rotateBitmap(source: Bitmap, angle: Float): Bitmap {
         val matrix = Matrix()
         matrix.postRotate(angle)
@@ -113,7 +115,9 @@ fun ResultsScreen(context: Context, navController: NavController) {
 
             while (attempts < maxAtt && !success) {
                 try {
+
                     val getResults = Retrofit.api.getRecognizedImages()
+
                     if (getResults.images.isNotEmpty()) {
                         urls = getResults.images
                         success = true
@@ -234,7 +238,9 @@ fun ResultsScreen(context: Context, navController: NavController) {
                                     onClick = {
                                         scope.launch {
                                             try {
+
                                                 val deleteResponse = Retrofit.api.deleteResults()
+
                                                 Log.d("RESULTSSCREEN", "Deleted ")
                                                 navController.navigate(Screen.Home.route)
                                             } catch (e: Exception) {
@@ -338,6 +344,7 @@ fun ResultsScreen(context: Context, navController: NavController) {
                                         colors= ButtonDefaults.buttonColors(colorResource(id = R.color.red)),
                                         onClick = {
                                             SavePicture(context, saveBitmap)
+
                                         }
 
                                     ) {

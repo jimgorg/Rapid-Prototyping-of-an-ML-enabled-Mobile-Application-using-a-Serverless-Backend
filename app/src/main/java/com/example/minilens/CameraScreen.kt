@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.nfc.Tag
 import android.os.Environment
+import android.provider.Settings
 import android.util.Base64
 import android.util.Log
 import android.util.Log.d
@@ -152,10 +153,12 @@ fun CameraScreen(context: Context, navController: NavController){
             isCapturing =true
             job = scope.launch {
 
+
                     imageCapture?.let{ it->
                         val success = TakePicture(context, it, executor){ file, fileBase64 ->
                             picturesList.add(Photo(file.name, fileBase64))
                         }
+
 
 //                        withContext(Dispatchers.Main) {
 //                            Toast.makeText(
@@ -164,7 +167,7 @@ fun CameraScreen(context: Context, navController: NavController){
 //                            ).show()
 //                        }
                     }
-                    delay(time)
+//                    delay(time)
 
                 withContext(Dispatchers.Main){
                     Toast.makeText(context,
@@ -175,13 +178,19 @@ fun CameraScreen(context: Context, navController: NavController){
                     Log.d("chekingobjects", "pic: ${photo.name} json: ${photo.photoOnBase64.take(50)}...")
                 }
 
-                val list = JsonifyImages(picturesList)
+//                val list = JsonifyImages(picturesList)
                 val upload = PicturesForUpload(picturesList)
 
 
                 try{
 
+                    val startTime = System.currentTimeMillis()
+
                     val resp = Retrofit.api.uploadImages(upload)
+                    val endTime  = System.currentTimeMillis()
+                    val totalTime = endTime - startTime
+                    Log.d("Performance", "delete takes : $totalTime ms")
+
                     Log.d("SUCCESS","SUCCESS : ${resp.status}, Message : ${resp.message}")
 
                     val procesimages = Retrofit.api.runObjectDetection()
@@ -193,7 +202,7 @@ fun CameraScreen(context: Context, navController: NavController){
                     Log.d("ERROR","Upload FAILED : ${e.message}")
                 }
 
-                Log.d("WILL_UPLOAD", list.toString(7))
+//                Log.d("WILL_UPLOAD", list.toString(7))
                 isCapturing = false
                 job = null
 
